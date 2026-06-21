@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>とけい クイズゲーム (Time Quiz Game)</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #fff9c4, #e1f5fe); /* ポップで可愛いグラデーション */
+            user-select: none;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            max-width: 90%;
+            width: 400px;
+        }
+
+        /* スコアやゲーム情報の表示 */
+        .status-area {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        /* 問題のデジタル時計表示 */
+        #clock-display {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: #e65100;
+            background: #ffe0b2;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 10px 0 20px 0;
+            letter-spacing: 2px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* クイズの質問エリア */
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #37474f;
+            margin-bottom: 20px;
+        }
+        .question-text span {
+            display: block;
+            font-size: 0.9rem;
+            color: #1e88e5;
+            font-weight: normal;
+            margin-top: 2px;
+        }
+
+        /* 4択の選択肢ボタン */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .btn-option {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 15px 10px;
+            border: 3px solid #b0bec5;
+            border-radius: 15px;
+            background-color: white;
+            color: #37474f;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .btn-option span {
+            display: block;
+            font-size: 0.85rem;
+            color: #78909c;
+            font-weight: normal;
+            margin-top: 4px;
+        }
+
+        .btn-option:active {
+            transform: scale(0.95);
+        }
+
+        /* 正解・不正解の時のスタイル */
+        .btn-option.correct {
+            background-color: #a5d6a7 !important;
+            border-color: #2e7d32 !important;
+            color: #1b5e20 !important;
+        }
+        .btn-option.wrong {
+            background-color: #ef9a9a !important;
+            border-color: #c62828 !important;
+            color: #b71c1c !important;
+        }
+
+        /* メッセージ表示 */
+        #message {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-height: 2.2rem;
+            margin-bottom: 15px;
+        }
+
+        /* つぎへ・リセットボタン */
+        .btn-control {
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background-color: #0288d1;
+            color: white;
+            transition: all 0.2s ease;
+        }
+        .btn-control:disabled {
+            background-color: #b0bec5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .btn-control span {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: normal;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- ゲームの状態 -->
+    <div class="status-area">
+        <div id="question-number">Q 1 / 5</div>
+        <div id="score-display">すこあ (Score): 0</div>
+    </div>
+
+    <!-- デジタル時計の問題表示 -->
+    <div id="clock-display">1:00</div>
+
+    <div class="question-text">
+        これ、日本語でなんという？
+        <span>Kore, nihongo de nan to iu? (How do you say this?)</span>
+    </div>
+
+    <!-- 4択ボタン -->
+    <div class="options-grid" id="options-container">
+        <!-- JavaScriptでボタンがここに作られます -->
+    </div>
+
+    <!-- まる・ばつ メッセージ -->
+    <div id="message"></div>
+
+    <!-- つぎへボタン -->
+    <button id="next-btn" class="btn-control" onclick="nextQuestion()" disabled>
+        つぎへ！
+        <span>tsugi he! (Next)</span>
+    </button>
+</div>
+
+<script>
+    // 1時から12時までの全データ
+    const timeData = [
+        { time: "1:00", hira: "いちじ", romaji: "ichiji" },
+        { time: "2:00", hira: "にじ", romaji: "niji" },
+        { time: "3:00", hira: "さんじ", romaji: "sanji" },
+        { time: "4:00", hira: "よじ", romaji: "yoji" },
+        { time: "5:00", hira: "ごじ", romaji: "goji" },
+        { time: "6:00", hira: "ろくじ", romaji: "rokuji" },
+        { time: "7:00", hira: "しちじ", romaji: "shichiji" },
+        { time: "8:00", hira: "はちじ", romaji: "hachiji" },
+        { time: "9:00", hira: "くじ", romaji: "kuji" },
+        { time: "10:00", hira: "じゅうじ", romaji: "jūji" },
+        { time: "11:00", hira: "じゅういちじ", romaji: "jūichiji" },
+        { time: "12:00", hira: "じゅうにじ", romaji: "jūniji" }
+    ];
+
+    let currentQuestionIdx = 0;
+    let score = 0;
+    let currentAnswer = null;
+    let hasAnswered = false;
+    let quizSelection = []; // 今回のゲームで使う5問の配列
+
+    // ゲームの初期化
+    function initGame() {
+        currentQuestionIdx = 0;
+        score = 0;
+        // 12個のデータからランダムに5個選ぶ
+        const shuffled = [...timeData].sort(() => 0.5 - Math.random());
+        quizSelection = shuffled.slice(0, 5);
+        
+        updateScore();
+        showQuestion();
+    }
+
+    // 問題を表示する
+    function showQuestion() {
+        hasAnswered = false;
+        document.getElementById('next-btn').disabled = true;
+        document.getElementById('message').innerText = "";
+        document.getElementById('message').style.color = "initial";
+        
+        document.getElementById('question-number').innerText = `Q ${currentQuestionIdx + 1} / 5`;
+
+        currentAnswer = quizSelection[currentQuestionIdx];
+        document.getElementById('clock-display').innerText = currentAnswer.time;
+
+        // 選択肢（ダミー3つ ＋ 正解1つ）を作る
+        let options = [currentAnswer];
+        const dummies = timeData.filter(d => d.time !== currentAnswer.time);
+        const shuffledDummies = dummies.sort(() => 0.5 - Math.random());
+        
+        options.push(shuffledDummies[0], shuffledDummies[1], shuffledDummies[2]);
+        // 4択をランダムに並び替える
+        options.sort(() => 0.5 - Math.random());
+
+        // ボタンを画面に生成
+        const container = document.getElementById('options-container');
+        container.innerHTML = "";
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-option';
+            btn.innerHTML = `${opt.hira}<span>${opt.romaji}</span>`;
+            btn.onclick = () => checkAnswer(btn, opt);
+            container.appendChild(btn);
+        });
+    }
+
+    // 答え合わせ
+    function checkAnswer(selectedBtn, selectedOption) {
+        if (hasAnswered) return; // 2回以上タップできないようにする
+        hasAnswered = true;
+
+        const allButtons = document.querySelectorAll('.btn-option');
+        
+        if (selectedOption.time === currentAnswer.time) {
+            // 正解！
+            selectedBtn.classList.add('correct');
+            document.getElementById('message').innerText = "⭕️ せいかい！ (Correct!)";
+            document.getElementById('message').style.color = "#2e7d32";
+            score += 20;
+            updateScore();
+            
+            // 音声で正解の時間を読み上げる
+            playAudio(currentAnswer.hira);
+        } else {
+            // 不正解
+            selectedBtn.classList.add('wrong');
+            document.getElementById('message').innerText = "❌ ざんねん！ (Wrong!)";
+            document.getElementById('message').style.color = "#c62828";
+            
+            // 正解のボタンを緑色に光らせる
+            allButtons.forEach(btn => {
+                if (btn.innerText.includes(currentAnswer.hira)) {
+                    btn.classList.add('correct');
+                }
+            });
+        }
+
+        // 次へボタンを有効化
+        document.getElementById('next-btn').disabled = false;
+        
+        // 最後の問題だったらボタンの文字を「結果発表」に変える
+        if (currentQuestionIdx === 4) {
+            document.getElementById('next-btn').innerHTML = "けっかはっぴょう！<span>kekka happyō! (Result)</span>";
+        }
+    }
+
+    // スコア表示の更新
+    function updateScore() {
+        document.getElementById('score-display').innerText = `すこあ (Score): ${score}`;
+    }
+
+    // つぎへボタンを押した時
+    function nextQuestion() {
+        currentQuestionIdx++;
+        if (currentQuestionIdx < 5) {
+            showQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    // 結果画面
+    function showResult() {
+        document.getElementById('clock-display').innerText = "🎉";
+        document.getElementById('question-number').innerText = "Finish!";
+        
+        let rankMessage = "";
+        let rankRomaji = "";
+        if (score === 100) {
+            rankMessage = "たいへんよくできました！";
+            rankRomaji = "Taihen yoku dekimashita! (Perfect!)";
+        } else if (score >= 60) {
+            rankMessage = "がんばりました！";
+            rankRomaji = "Ganbarimashita! (Great job!)";
+        } else {
+            rankMessage = "もういちど やってみよう！";
+            rankRomaji = "Mō ichido yattemiyou! (Try again!)";
+        }
+
+        document.getElementById('options-container').innerHTML = `
+            <div style="grid-column: span 2; font-size: 1.3rem; font-weight: bold; color: #1565c0; margin: 10px 0;">
+                ${rankMessage}<br><span style="font-size: 0.95rem; color: #555; font-weight: normal;">${rankRomaji}</span>
+            </div>
+        `;
+        
+        document.getElementById('message').innerText = `あなたの すこあ: ${score} てん`;
+        
+        // リセットボタンに変更
+        const nextBtn = document.getElementById('next-btn');
+        nextBtn.innerHTML = "もういっかい！<span>mō ikkai! (Play Again)</span>";
+        nextBtn.onclick = () => {
+            nextBtn.onclick = nextQuestion; // 元の関数に戻す
+            nextBtn.innerHTML = "つぎへ！<span>tsugi he! (Next)</span>";
+            initGame();
+        };
+    }
+
+    // 日本語の音声読み上げ
+    function playAudio(text) {
+        window.speechSynthesis.cancel();
+        const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = 'ja-JP';
+        speech.rate = 0.9;
+        window.speechSynthesis.speak(speech);
+    }
+
+    // ページが読み込まれたらゲームスタート
+    window.onload = initGame;
+</script>
+
+</body>
+</html>
